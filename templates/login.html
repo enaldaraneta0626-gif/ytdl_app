@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — YTDL</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#080808; --surface:#101010; --surface2:#161616; --border:#1e1e1e; --accent:#e8ff47; --text:#f0f0f0; --muted:#4a4a4a; --muted2:#888; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; }
+  .logo { font-family:'Bebas Neue',sans-serif; font-size:32px; color:var(--accent); margin-bottom:32px; letter-spacing:0.05em; }
+  .logo span { color:var(--text); }
+  .box { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:36px; width:100%; max-width:400px; }
+  h2 { font-size:22px; font-weight:700; margin-bottom:6px; }
+  .sub { color:var(--muted2); font-size:14px; margin-bottom:28px; }
+  label { display:block; font-size:12px; font-weight:600; color:var(--muted2); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; font-family:'DM Mono',monospace; }
+  input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-family:'DM Mono',monospace; font-size:14px; padding:13px 16px; outline:none; transition:border-color 0.2s; margin-bottom:18px; }
+  input:focus { border-color:var(--accent); }
+  input::placeholder { color:var(--muted); }
+  .btn { width:100%; background:var(--accent); border:none; border-radius:10px; color:#000; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:700; padding:14px; cursor:pointer; transition:opacity 0.2s; margin-top:4px; }
+  .btn:hover { opacity:0.88; }
+  .error { background:rgba(255,68,68,0.08); border:1px solid rgba(255,68,68,0.2); color:#ff7070; border-radius:10px; padding:12px 16px; font-size:13px; margin-bottom:18px; font-family:'DM Mono',monospace; }
+  .footer-link { text-align:center; margin-top:20px; font-size:13px; color:var(--muted2); }
+  .footer-link a { color:var(--accent); text-decoration:none; font-weight:600; }
+</style>
+</head>
+<body>
+<a href="/" class="logo">YT<span>DL</span></a>
+<div class="box">
+  <h2>Welcome back</h2>
+  <p class="sub">Login to continue downloading.</p>
+
+  {% if error %}
+  <div class="error">{{ error }}</div>
+  {% endif %}
+
+  <form method="POST">
+    <label>Email</label>
+    <input type="email" name="email" placeholder="you@email.com" required />
+    <label>Password</label>
+    <input type="password" name="password" placeholder="••••••••" required />
+    <button type="submit" class="btn">Login →</button>
+  </form>
+</div>
+<div class="footer-link">Don't have an account? <a href="/signup">Sign up free</a></div>
+</body>
+</html>

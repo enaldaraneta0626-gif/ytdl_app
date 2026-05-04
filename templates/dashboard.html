@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — YTDL</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#080808; --surface:#101010; --surface2:#161616; --border:#1e1e1e; --accent:#e8ff47; --accent-dim:rgba(232,255,71,0.1); --text:#f0f0f0; --muted:#4a4a4a; --muted2:#888; --success:#47ffb0; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; }
+  nav { display:flex; align-items:center; justify-content:space-between; padding:20px 40px; border-bottom:1px solid var(--border); }
+  .nav-logo { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:0.05em; color:var(--accent); text-decoration:none; }
+  .nav-logo span { color:var(--text); }
+  .nav-right { display:flex; gap:10px; align-items:center; }
+  .nav-btn { padding:8px 18px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; transition:all 0.2s; font-family:'DM Sans',sans-serif; border:1px solid var(--border); background:transparent; color:var(--text); }
+  .nav-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .nav-btn.filled { background:var(--accent); color:#000; border:none; }
+  .nav-btn.filled:hover { opacity:0.88; }
+
+  main { max-width:800px; margin:0 auto; padding:48px 20px; }
+  .page-title { font-family:'Bebas Neue',sans-serif; font-size:48px; letter-spacing:0.02em; margin-bottom:32px; }
+  .page-title span { color:var(--accent); }
+
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:40px; }
+  .stat { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px; }
+  .stat-label { font-size:11px; font-family:'DM Mono',monospace; color:var(--muted2); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px; }
+  .stat-val { font-size:32px; font-family:'Bebas Neue',sans-serif; letter-spacing:0.02em; }
+  .stat-val.accent { color:var(--accent); }
+  .stat-val.success { color:var(--success); }
+
+  .upgrade-banner {
+    background:var(--accent-dim);
+    border:1px solid rgba(232,255,71,0.2);
+    border-radius:14px;
+    padding:20px 24px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:32px;
+    gap:16px;
+  }
+  .upgrade-banner p { font-size:14px; color:var(--text); }
+  .upgrade-banner strong { color:var(--accent); }
+  .upgrade-banner a { background:var(--accent); color:#000; font-weight:700; font-size:13px; padding:10px 20px; border-radius:9px; text-decoration:none; white-space:nowrap; transition:opacity 0.2s; }
+  .upgrade-banner a:hover { opacity:0.88; }
+
+  h3 { font-size:16px; font-weight:700; margin-bottom:16px; color:var(--muted2); text-transform:uppercase; letter-spacing:0.08em; font-family:'DM Mono',monospace; }
+  .dl-list { display:flex; flex-direction:column; gap:8px; }
+  .dl-item {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:14px 18px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .dl-title { font-size:14px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+  .dl-meta { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+  .dl-mode { font-size:11px; font-family:'DM Mono',monospace; background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:3px 8px; color:var(--muted2); }
+  .dl-date { font-size:11px; color:var(--muted); font-family:'DM Mono',monospace; }
+  .empty { text-align:center; padding:48px; color:var(--muted2); }
+  .empty a { color:var(--accent); text-decoration:none; font-weight:600; }
+</style>
+</head>
+<body>
+<nav>
+  <a href="/" class="nav-logo">YT<span>DL</span></a>
+  <div class="nav-right">
+    <a href="/" class="nav-btn filled">⬇ Download</a>
+    <a href="/logout" class="nav-btn">Logout</a>
+  </div>
+</nav>
+
+<main>
+  <div class="page-title">HEY, <span>{{ current_user.username }}</span></div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Downloads Used</div>
+      <div class="stat-val accent">{{ current_user.download_count }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Downloads Left</div>
+      <div class="stat-val success">{{ downloads_left }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Account Type</div>
+      <div class="stat-val">{{ 'PRO' if current_user.is_premium else 'FREE' }}</div>
+    </div>
+  </div>
+
+  {% if not current_user.is_premium %}
+  <div class="upgrade-banner">
+    <p>Unlock <strong>unlimited downloads</strong> with a Pro subscription — coming soon for just a few dollars/month.</p>
+    <a href="#">Get Pro →</a>
+  </div>
+  {% endif %}
+
+  <h3>Recent Downloads</h3>
+  <div class="dl-list">
+    {% if recent %}
+      {% for dl in recent %}
+      <div class="dl-item">
+        <div class="dl-title">{{ dl.title or 'Unknown' }}</div>
+        <div class="dl-meta">
+          <span class="dl-mode">{{ dl.mode.upper() }}</span>
+          <span class="dl-date">{{ dl.created_at.strftime('%b %d') }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty">No downloads yet. <a href="/">Start downloading →</a></div>
+    {% endif %}
+  </div>
+</main>
+</body>
+</html>

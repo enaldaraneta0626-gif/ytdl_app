@@ -1,0 +1,252 @@
+from flask import Flask, request, jsonify, send_file, render_template, redirect, url_for, session, flash
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_bcrypt import Bcrypt
+import yt_dlp
+import os
+import threading
+import uuid
+from pathlib import Path
+from datetime import datetime
+import re
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-in-production')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///ytdl.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+bcrypt = Bcrypt(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+
+DOWNLOAD_DIR = Path(__file__).parent / "downloads"
+DOWNLOAD_DIR.mkdir(exist_ok=True)
+FREE_LIMIT = 5
+
+jobs = {}
+
+# ── Models ──────────────────────────────────────────────────────────────────
+
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(150), unique=True, nullable=False)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
+    is_premium = db.Column(db.Boolean, default=False)
+    download_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    downloads = db.relationship('Download', backref='user', lazy=True)
+
+class Download(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    title = db.Column(db.String(300))
+    mode = db.Column(db.String(20))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+def get_guest_count():
+    return session.get('guest_downloads', 0)
+
+def can_download():
+    if current_user.is_authenticated:
+        if current_user.is_premium:
+            return True, None
+        if current_user.download_count >= FREE_LIMIT:
+            return False, 'limit'
+        return True, None
+    else:
+        if get_guest_count() >= FREE_LIMIT:
+            return False, 'limit'
+        return True, None
+
+def record_download(title, mode):
+    if current_user.is_authenticated:
+        current_user.download_count += 1
+        dl = Download(user_id=current_user.id, title=title, mode=mode)
+        db.session.add(dl)
+        db.session.commit()
+    else:
+        session['guest_downloads'] = session.get('guest_downloads', 0) + 1
+
+def get_ydl_opts(job_id, mode, output_path):
+    def progress_hook(d):
+        if d['status'] == 'downloading':
+            total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
+            downloaded = d.get('downloaded_bytes', 0)
+            percent = int((downloaded / total) * 100) if total else 0
+            speed = d.get('speed', 0)
+            speed_str = f"{speed/1024/1024:.1f} MB/s" if speed else "..."
+            jobs[job_id].update({'status': 'downloading', 'percent': percent, 'speed': speed_str, 'message': f'Downloading... {percent}%'})
+        elif d['status'] == 'finished':
+            jobs[job_id].update({'status': 'processing', 'percent': 95, 'message': 'Processing...'})
+
+    base = {'outtmpl': str(output_path / '%(title)s.%(ext)s'), 'progress_hooks': [progress_hook], 'noplaylist': True}
+    if mode == 'mp3':
+        return {**base, 'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}]}
+    elif mode == 'mp4':
+        return {**base, 'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best', 'merge_output_format': 'mp4'}
+    elif mode == 'convert':
+        return {**base, 'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best', 'merge_output_format': 'mp4',
+                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}]}
+
+def download_worker(job_id, url, mode, user_id=None):
+    job_dir = DOWNLOAD_DIR / job_id
+    job_dir.mkdir(exist_ok=True)
+    try:
+        opts = get_ydl_opts(job_id, mode, job_dir)
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            title = info.get('title', 'download')
+        files = list(job_dir.iterdir())
+        if not files:
+            raise Exception("No file was downloaded.")
+        jobs[job_id].update({'status': 'done', 'percent': 100, 'message': 'Done!', 'filename': files[0].name, 'filepath': str(files[0]), 'title': title})
+
+        # Record in DB
+        with app.app_context():
+            if user_id:
+                user = User.query.get(user_id)
+                if user:
+                    user.download_count += 1
+                    dl = Download(user_id=user_id, title=title, mode=mode)
+                    db.session.add(dl)
+                    db.session.commit()
+    except Exception as e:
+        jobs[job_id].update({'status': 'error', 'percent': 0, 'message': str(e)})
+
+# ── Auth Routes ──────────────────────────────────────────────────────────────
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        if not email or not username or not password:
+            return render_template('signup.html', error='All fields are required.')
+        if User.query.filter_by(email=email).first():
+            return render_template('signup.html', error='Email already registered.')
+        if User.query.filter_by(username=username).first():
+            return render_template('signup.html', error='Username taken.')
+        hashed = bcrypt.generate_password_hash(password).decode('utf-8')
+        user = User(email=email, username=username, password=hashed)
+        db.session.add(user)
+        db.session.commit()
+        login_user(user)
+        return redirect(url_for('index'))
+    return render_template('signup.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        user = User.query.filter_by(email=email).first()
+        if user and bcrypt.check_password_hash(user.password, password):
+            login_user(user)
+            return redirect(url_for('index'))
+        return render_template('login.html', error='Invalid email or password.')
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
+# ── Main Routes ──────────────────────────────────────────────────────────────
+
+@app.route('/')
+def index():
+    downloads_left = None
+    if current_user.is_authenticated and not current_user.is_premium:
+        downloads_left = max(0, FREE_LIMIT - current_user.download_count)
+    elif not current_user.is_authenticated:
+        downloads_left = max(0, FREE_LIMIT - get_guest_count())
+    return render_template('index.html', downloads_left=downloads_left)
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    recent = Download.query.filter_by(user_id=current_user.id).order_by(Download.created_at.desc()).limit(20).all()
+    downloads_left = max(0, FREE_LIMIT - current_user.download_count) if not current_user.is_premium else '∞'
+    return render_template('dashboard.html', recent=recent, downloads_left=downloads_left)
+
+# ── API Routes ───────────────────────────────────────────────────────────────
+
+@app.route('/api/info', methods=['POST'])
+def get_info():
+    url = request.json.get('url', '').strip()
+    try:
+        with yt_dlp.YoutubeDL({'quiet': True, 'noplaylist': True}) as ydl:
+            info = ydl.extract_info(url, download=False)
+        return jsonify({'title': info.get('title'), 'thumbnail': info.get('thumbnail'),
+                        'duration': info.get('duration'), 'uploader': info.get('uploader'), 'view_count': info.get('view_count')})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/download', methods=['POST'])
+def start_download():
+    data = request.json
+    url = data.get('url', '').strip()
+    mode = data.get('mode', 'mp3')
+
+    if not url:
+        return jsonify({'error': 'No URL provided'}), 400
+
+    allowed, reason = can_download()
+    if not allowed:
+        return jsonify({'error': 'limit', 'message': f'Free limit reached ({FREE_LIMIT} downloads). Please sign up to continue!'}), 403
+
+    # Record guest download immediately
+    if not current_user.is_authenticated:
+        session['guest_downloads'] = session.get('guest_downloads', 0) + 1
+
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {'status': 'starting', 'percent': 0, 'message': 'Starting...'}
+    user_id = current_user.id if current_user.is_authenticated else None
+    thread = threading.Thread(target=download_worker, args=(job_id, url, mode, user_id))
+    thread.daemon = True
+    thread.start()
+    return jsonify({'job_id': job_id})
+
+@app.route('/api/status/<job_id>')
+def job_status(job_id):
+    job = jobs.get(job_id)
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+    return jsonify(job)
+
+@app.route('/api/file/<job_id>')
+def serve_file(job_id):
+    job = jobs.get(job_id)
+    if not job or job.get('status') != 'done':
+        return jsonify({'error': 'File not ready'}), 404
+    filepath = job.get('filepath')
+    if not filepath or not os.path.exists(filepath):
+        return jsonify({'error': 'File not found'}), 404
+    return send_file(filepath, as_attachment=True, download_name=job.get('filename'))
+
+@app.route('/api/me')
+def me():
+    if current_user.is_authenticated:
+        downloads_left = '∞' if current_user.is_premium else max(0, FREE_LIMIT - current_user.download_count)
+        return jsonify({'logged_in': True, 'username': current_user.username, 'downloads_left': downloads_left, 'is_premium': current_user.is_premium})
+    return jsonify({'logged_in': False, 'downloads_left': max(0, FREE_LIMIT - get_guest_count())})
+
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+    print("\n✅  YTDL SaaS running at: http://localhost:5100\n")
+    app.run(host='0.0.0.0', port=5100, debug=False)
