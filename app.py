@@ -123,8 +123,9 @@ def get_ydl_opts(job_id, mode, output_path):
         elif d['status'] == 'finished':
             jobs[job_id].update({'status': 'processing', 'percent': 95, 'message': 'Processing...'})
 
-   cookies_file = Path(__file__).parent / 'cookies.txt'
-base = {'outtmpl': str(output_path / '%(title)s.%(ext)s'), 'progress_hooks': [progress_hook], 'noplaylist': True, 'cookiefile': str(cookies_file) if cookies_file.exists() else None}
+    cookies_file = Path(__file__).parent / 'cookies.txt'
+    cookie_arg = str(cookies_file) if cookies_file.exists() else None
+    base = {'outtmpl': str(output_path / '%(title)s.%(ext)s'), 'progress_hooks': [progress_hook], 'noplaylist': True, 'cookiefile': cookie_arg}
     if mode == 'mp3':
         return {**base, 'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}]}
     elif mode == 'mp4':
