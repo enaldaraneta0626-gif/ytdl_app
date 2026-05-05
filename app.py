@@ -1,3 +1,6 @@
+import psycopg2cffi
+import psycopg2cffi.compat
+psycopg2cffi.compat.register()
 from flask import Flask, request, jsonify, send_file, render_template, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
