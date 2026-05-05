@@ -41,6 +41,11 @@ COBALT_INSTANCES = [
     "https://cobalt.imput.net",
     "https://api.cobalt.tools",
     "https://cobalt.api.timelessnesses.me",
+    "https://cobalt.urdushayari.cf",
+    "https://cobalt.synzr.space",
+    "https://co.wuk.sh",
+    "https://cobalt.riversiderocksalt.me",
+    "https://cobalt.drgns.space",
 ]
 
 jobs = {}
