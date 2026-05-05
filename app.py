@@ -245,8 +245,9 @@ def me():
         return jsonify({'logged_in': True, 'username': current_user.username, 'downloads_left': downloads_left, 'is_premium': current_user.is_premium})
     return jsonify({'logged_in': False, 'downloads_left': max(0, FREE_LIMIT - get_guest_count())})
 
+with app.app_context():
+    db.create_all()
+
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    print("\n✅  YTDL SaaS running at: http://localhost:5100\n")
+    print("\n✅  YTDL running at: http://localhost:5100\n")
     app.run(host='0.0.0.0', port=5100, debug=False)
