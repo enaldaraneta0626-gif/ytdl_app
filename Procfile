@@ -1,1 +1,1 @@
-web: python -c "from app import app, db; app.app_context().__enter__(); db.create_all()" && gunicorn app:app --workers 2 --timeout 120
+web: curl -fsSL https://deno.land/install.sh | sh && gunicorn app:app --workers 2 --timeout 120
