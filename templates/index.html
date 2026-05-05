@@ -5,318 +5,547 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YTDL — Download Anything</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Space+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #080808;
-    --surface: #101010;
-    --surface2: #161616;
-    --border: #1e1e1e;
-    --accent: #e8ff47;
-    --accent-dim: rgba(232,255,71,0.1);
-    --text: #f0f0f0;
-    --muted: #4a4a4a;
-    --muted2: #888;
-    --danger: #ff4444;
-    --success: #47ffb0;
+    --bg: #05050a;
+    --surface: #0d0d14;
+    --surface2: #12121c;
+    --border: #1a1a28;
+    --accent: #7c6fff;
+    --accent2: #ff6f91;
+    --accent3: #6fffd4;
+    --text: #e8e8f0;
+    --muted: #3a3a50;
+    --muted2: #7070a0;
+    --success: #6fffd4;
+    --danger: #ff6f6f;
   }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Space Grotesk', sans-serif;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* BACKGROUND EFFECTS */
+  .bg-effects {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.12;
+  }
+  .orb-1 { width: 600px; height: 600px; background: var(--accent); top: -200px; right: -100px; animation: drift1 20s ease-in-out infinite; }
+  .orb-2 { width: 400px; height: 400px; background: var(--accent2); bottom: -100px; left: -100px; animation: drift2 25s ease-in-out infinite; }
+  .orb-3 { width: 300px; height: 300px; background: var(--accent3); top: 40%; left: 40%; animation: drift3 18s ease-in-out infinite; }
+  @keyframes drift1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-50px,80px)} }
+  @keyframes drift2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(60px,-40px)} }
+  @keyframes drift3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-40px,60px)} }
+
+  /* GRID OVERLAY */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: linear-gradient(rgba(124,111,255,0.03) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(124,111,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
   }
 
   /* NAV */
   nav {
+    position: relative;
+    z-index: 10;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 40px;
+    padding: 24px 48px;
     border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+    background: rgba(5,5,10,0.6);
   }
   .nav-logo {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 28px;
-    letter-spacing: 0.05em;
-    color: var(--accent);
+    font-family: 'Clash Display', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-decoration: none;
+    color: var(--text);
   }
-  .nav-logo span { color: var(--text); }
-  .nav-right { display: flex; align-items: center; gap: 12px; }
-  .nav-user {
-    font-size: 13px;
-    color: var(--muted2);
-    font-family: 'DM Mono', monospace;
-  }
+  .nav-logo .dot { color: var(--accent); }
+  .nav-right { display: flex; align-items: center; gap: 10px; }
+  .nav-user { font-size: 13px; color: var(--muted2); font-family: 'JetBrains Mono', monospace; }
   .nav-btn {
-    padding: 8px 18px;
-    border-radius: 8px;
+    padding: 8px 20px;
+    border-radius: 10px;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     text-decoration: none;
     transition: all 0.2s;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Space Grotesk', sans-serif;
   }
-  .nav-btn.outline {
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--text);
-  }
-  .nav-btn.outline:hover { border-color: var(--accent); color: var(--accent); }
-  .nav-btn.filled {
-    background: var(--accent);
-    color: #000;
-    border: none;
-    font-weight: 700;
-  }
-  .nav-btn.filled:hover { opacity: 0.88; }
+  .nav-btn.ghost { border: 1px solid var(--border); background: transparent; color: var(--muted2); }
+  .nav-btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-btn.solid { background: var(--accent); color: #fff; border: none; box-shadow: 0 0 20px rgba(124,111,255,0.3); }
+  .nav-btn.solid:hover { opacity: 0.88; transform: translateY(-1px); }
+
+  /* MAIN */
+  main { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; align-items: center; padding: 60px 20px 80px; }
 
   /* HERO */
-  .hero {
-    text-align: center;
-    padding: 80px 20px 40px;
-  }
-  .hero-tag {
-    display: inline-block;
-    background: var(--accent-dim);
-    border: 1px solid rgba(232,255,71,0.2);
-    color: var(--accent);
-    font-size: 11px;
-    font-family: 'DM Mono', monospace;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    padding: 5px 14px;
-    border-radius: 100px;
-    margin-bottom: 24px;
-  }
-  h1 {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: clamp(60px, 10vw, 110px);
-    line-height: 0.9;
-    letter-spacing: 0.02em;
-    margin-bottom: 16px;
-  }
-  h1 .accent { color: var(--accent); }
-  .hero-sub {
-    color: var(--muted2);
-    font-size: 16px;
-    font-weight: 300;
-    max-width: 400px;
-    margin: 0 auto 40px;
-    line-height: 1.6;
-  }
-
-  /* DOWNLOADS LEFT BADGE */
-  .dl-badge {
+  .hero { text-align: center; max-width: 700px; margin-bottom: 48px; }
+  .hero-eyebrow {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
+    background: rgba(124,111,255,0.08);
+    border: 1px solid rgba(124,111,255,0.2);
     border-radius: 100px;
-    padding: 8px 16px;
+    padding: 6px 16px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 28px;
+  }
+  .hero-eyebrow .blink { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 1.5s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  h1 {
+    font-family: 'Clash Display', sans-serif;
+    font-size: clamp(48px, 8vw, 88px);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    margin-bottom: 20px;
+  }
+  h1 .grad {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 50%, var(--accent3) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-sub {
+    color: var(--muted2);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.7;
+    margin-bottom: 28px;
+  }
+
+  /* TIER PILLS */
+  .tier-pills {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted2);
+  }
+  .pill .pi { font-size: 14px; }
+  .pill strong { color: var(--text); }
+  .pill .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 2px; }
+  .pill .tag.free { background: rgba(124,111,255,0.15); color: var(--accent); }
+  .pill .tag.noad { background: rgba(111,255,212,0.15); color: var(--accent3); }
+  .pill .tag.unlim { background: rgba(255,111,145,0.15); color: var(--accent2); }
+
+  /* DL COUNTER */
+  .dl-counter {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    font-family: 'JetBrains Mono', monospace;
     font-size: 13px;
     margin-bottom: 40px;
-    font-family: 'DM Mono', monospace;
   }
-  .dl-badge .dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--accent);
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-  .dl-badge.warning .dot { background: #ff9f43; }
-  .dl-badge.danger .dot { background: var(--danger); }
+  .dl-counter .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent3); position: relative; }
+  .dl-counter .pulse-dot::after { content:''; position:absolute; inset:-3px; border-radius:50%; background:var(--accent3); opacity:0.3; animation: ripple 2s infinite; }
+  @keyframes ripple { 0%{transform:scale(1);opacity:0.3} 100%{transform:scale(2.5);opacity:0} }
+  .dl-counter.warn .pulse-dot, .dl-counter.warn .pulse-dot::after { background: #ffb347; }
+  .dl-counter.danger .pulse-dot, .dl-counter.danger .pulse-dot::after { background: var(--danger); }
 
   /* MAIN CARD */
   .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 32px;
     width: 100%;
-    max-width: 700px;
-    margin: 0 auto;
+    max-width: 680px;
+    background: rgba(13,13,20,0.8);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 32px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 0 80px rgba(124,111,255,0.06), 0 40px 80px rgba(0,0,0,0.4);
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.4;
   }
 
-  /* MODES */
+  /* MODE TABS */
   .modes {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
     margin-bottom: 24px;
+    background: var(--surface2);
+    padding: 6px;
+    border-radius: 16px;
   }
   .mode-btn {
-    padding: 12px 8px;
+    padding: 14px 8px;
     border-radius: 12px;
-    border: 1px solid var(--border);
+    border: none;
     background: transparent;
     color: var(--muted2);
     cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Space Grotesk', sans-serif;
     font-size: 13px;
     font-weight: 600;
-    transition: all 0.2s;
+    transition: all 0.25s;
     text-align: center;
   }
-  .mode-btn .icon { font-size: 20px; display: block; margin-bottom: 4px; }
+  .mode-btn .icon { font-size: 22px; display: block; margin-bottom: 5px; }
   .mode-btn.active {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: var(--accent-dim);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
   }
+  .mode-btn.active .mode-label { color: var(--accent); }
 
   /* URL INPUT */
-  .url-row { display: flex; gap: 8px; margin-bottom: 16px; }
-  input[type="text"] {
-    flex: 1;
+  .input-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
     background: var(--surface2);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    color: var(--text);
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    padding: 14px 18px;
-    outline: none;
+    border-radius: 14px;
+    padding: 6px 6px 6px 18px;
     transition: border-color 0.2s;
   }
-  input[type="text"]:focus { border-color: var(--accent); }
-  input[type="text"]::placeholder { color: var(--muted); }
-
-  .btn {
+  .input-group:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,111,255,0.1); }
+  .input-group input {
+    flex: 1;
+    background: transparent;
     border: none;
-    border-radius: 12px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    min-width: 0;
+  }
+  .input-group input::placeholder { color: var(--muted); }
+  .btn-preview {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted2);
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 700;
+    font-family: 'Space Grotesk', sans-serif;
     transition: all 0.2s;
     white-space: nowrap;
   }
-  .btn:active { transform: scale(0.97); }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .btn-ghost { background: var(--surface2); color: var(--muted2); font-size: 13px; padding: 14px 18px; border: 1px solid var(--border); }
-  .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
-  .btn-primary { background: var(--accent); color: #000; font-size: 16px; padding: 16px; width: 100%; }
-  .btn-primary:hover:not(:disabled) { opacity: 0.88; }
-  .btn-success { background: var(--success); color: #000; font-size: 13px; padding: 10px 18px; }
+  .btn-preview:hover { color: var(--text); border-color: var(--muted2); }
 
   /* PREVIEW */
   #preview {
     display: none;
     background: var(--surface2);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 14px;
     margin-bottom: 16px;
     gap: 14px;
     align-items: center;
   }
   #preview.visible { display: flex; }
-  #preview img { width: 110px; height: 62px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
-  .prev-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; line-height: 1.3; }
-  .prev-meta { font-size: 11px; color: var(--muted2); font-family: 'DM Mono', monospace; }
+  #preview img { width: 120px; height: 68px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+  .prev-title { font-size: 13px; font-weight: 600; margin-bottom: 5px; line-height: 1.3; }
+  .prev-meta { font-size: 11px; color: var(--muted2); font-family: 'JetBrains Mono', monospace; }
+
+  /* DOWNLOAD BTN */
+  .btn-download {
+    width: 100%;
+    padding: 18px;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent), #9b8fff);
+    color: #fff;
+    font-family: 'Clash Display', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(124,111,255,0.3);
+  }
+  .btn-download::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .btn-download:hover::before { opacity: 1; }
+  .btn-download:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(124,111,255,0.4); }
+  .btn-download:active { transform: translateY(0); }
+  .btn-download:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
   /* PROGRESS */
   #progress-wrap { display: none; margin-top: 16px; }
   #progress-wrap.visible { display: block; }
-  .prog-label { display: flex; justify-content: space-between; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted2); margin-bottom: 8px; }
-  .prog-bg { background: var(--border); border-radius: 100px; height: 4px; overflow: hidden; }
-  .prog-fill { height: 100%; border-radius: 100px; background: var(--accent); transition: width 0.4s ease; width: 0%; }
+  .prog-header { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted2); margin-bottom: 8px; }
+  .prog-track { background: var(--surface2); border-radius: 100px; height: 4px; overflow: hidden; }
+  .prog-bar { height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.4s ease; width: 0%; box-shadow: 0 0 10px rgba(124,111,255,0.5); }
 
   /* RESULT */
   #result { display: none; margin-top: 16px; }
   #result.visible { display: block; }
   .result-box {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    background: rgba(71,255,176,0.05);
-    border: 1px solid rgba(71,255,176,0.2);
-    border-radius: 12px; padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: rgba(111,255,212,0.05);
+    border: 1px solid rgba(111,255,212,0.2);
+    border-radius: 14px;
+    padding: 16px 20px;
   }
-  .result-name { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--success); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .result-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .result-icon { font-size: 24px; flex-shrink: 0; }
+  .result-name { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--success); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .result-tag { font-size: 10px; color: var(--muted2); margin-top: 2px; }
+  .btn-save {
+    background: var(--success);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    box-shadow: 0 4px 16px rgba(111,255,212,0.2);
+  }
+  .btn-save:hover { opacity: 0.88; transform: translateY(-1px); }
 
-  /* ERROR / LIMIT */
-  .alert { display: none; margin-top: 16px; border-radius: 12px; padding: 16px 18px; font-size: 13px; }
+  /* ALERTS */
+  .alert { display: none; margin-top: 16px; border-radius: 14px; padding: 16px 20px; font-size: 13px; }
   .alert.visible { display: block; }
-  .alert-error { background: rgba(255,68,68,0.07); border: 1px solid rgba(255,68,68,0.25); color: #ff7070; font-family: 'DM Mono', monospace; }
-  .alert-limit {
-    background: var(--accent-dim);
-    border: 1px solid rgba(232,255,71,0.25);
-    color: var(--text);
-  }
-  .alert-limit strong { color: var(--accent); }
-  .alert-limit .limit-btns { display: flex; gap: 8px; margin-top: 14px; }
-  .alert-limit a {
-    flex: 1; text-align: center; padding: 10px;
-    border-radius: 9px; font-size: 13px; font-weight: 700;
-    text-decoration: none; transition: opacity 0.2s;
-  }
-  .alert-limit a.primary { background: var(--accent); color: #000; }
-  .alert-limit a.secondary { border: 1px solid var(--border); color: var(--text); }
-  .alert-limit a:hover { opacity: 0.85; }
+  .alert-error { background: rgba(255,111,111,0.07); border: 1px solid rgba(255,111,111,0.2); color: #ff9090; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; }
+  .alert-limit { background: rgba(124,111,255,0.07); border: 1px solid rgba(124,111,255,0.25); }
+  .alert-limit h4 { font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--accent); }
+  .alert-limit p { font-size: 13px; color: var(--muted2); margin-bottom: 14px; }
+  .limit-btns { display: flex; gap: 8px; }
+  .limit-btns a { flex: 1; text-align: center; padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 700; text-decoration: none; transition: all 0.2s; }
+  .limit-btns a.p { background: var(--accent); color: #fff; }
+  .limit-btns a.s { border: 1px solid var(--border); color: var(--muted2); }
+  .limit-btns a:hover { opacity: 0.85; transform: translateY(-1px); }
 
-  /* FOOTER */
-  main { flex: 1; padding: 0 20px 80px; }
-  footer { text-align: center; padding: 24px; font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; border-top: 1px solid var(--border); }
+  /* AD OVERLAY */
+  #ad-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.95);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 20px;
+    backdrop-filter: blur(10px);
+  }
+  #ad-overlay.visible { display: flex; }
+  .ad-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 28px;
+    width: 100%;
+    max-width: 600px;
+    text-align: center;
+    box-shadow: 0 0 100px rgba(124,111,255,0.1);
+  }
+  .ad-card::before {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.4;
+    margin-bottom: 24px;
+  }
+  .ad-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 8px; }
+  .ad-card h2 { font-family: 'Clash Display', sans-serif; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
+  .ad-card p { color: var(--muted2); font-size: 13px; margin-bottom: 20px; }
+  .ad-video { position: relative; width: 100%; padding-bottom: 56.25%; border-radius: 14px; overflow: hidden; margin-bottom: 20px; background: #000; }
+  .ad-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+  .ad-footer { display: flex; align-items: center; justify-content: center; gap: 16px; }
+  .ad-timer { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted2); }
+  .btn-skip {
+    background: linear-gradient(135deg, var(--accent), #9b8fff);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 28px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(124,111,255,0.3);
+  }
+  .btn-skip:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-skip:not(:disabled):hover { transform: translateY(-1px); }
+  .ad-noad { margin-top: 14px; font-size: 12px; color: var(--muted); }
+  .ad-noad a { color: var(--accent); text-decoration: none; }
+
+  footer {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 24px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    border-top: 1px solid var(--border);
+  }
+  footer a { color: var(--accent); text-decoration: none; }
 </style>
 </head>
 <body>
 
+<div class="bg-effects">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<!-- AD OVERLAY -->
+<div id="ad-overlay">
+  <div class="ad-card">
+    <div class="ad-eyebrow">📺 From the creator</div>
+    <h2>Your file is ready!</h2>
+    <p>Watch this quick video, then your download starts automatically.</p>
+    <div class="ad-video">
+      <iframe id="ad-iframe" src="" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+    </div>
+    <div class="ad-footer">
+      <span class="ad-timer" id="skip-timer">Skip in 5s...</span>
+      <button class="btn-skip" id="skip-btn" disabled onclick="skipAd()">Skip & Download ↓</button>
+    </div>
+    <div class="ad-noad">No ads? <a href="/signup">Sign up free</a> — 10 downloads/day, zero interruptions.</div>
+  </div>
+</div>
+
 <nav>
-  <div class="nav-logo">YT<span>DL</span></div>
+  <a href="/" class="nav-logo">yt<span class="dot">.</span>dl</a>
   <div class="nav-right">
     {% if current_user.is_authenticated %}
       <span class="nav-user">{{ current_user.username }}</span>
-      <a href="/dashboard" class="nav-btn outline">Dashboard</a>
-      <a href="/logout" class="nav-btn outline">Logout</a>
+      <a href="/dashboard" class="nav-btn ghost">Dashboard</a>
+      <a href="/logout" class="nav-btn ghost">Logout</a>
     {% else %}
-      <a href="/login" class="nav-btn outline">Login</a>
-      <a href="/signup" class="nav-btn filled">Sign Up Free</a>
+      <a href="/login" class="nav-btn ghost">Login</a>
+      <a href="/signup" class="nav-btn solid">Sign Up Free</a>
     {% endif %}
   </div>
 </nav>
 
 <main>
   <div class="hero">
-    <div class="hero-tag">▶ YouTube Downloader</div>
-    <h1>DOWNLOAD<br><span class="accent">ANYTHING</span></h1>
-    <p class="hero-sub">MP4 videos, MP3 audio — fast, clean, no ads.</p>
+    <div class="hero-eyebrow"><span class="blink"></span>YouTube Downloader</div>
+    <h1>Download<br><span class="grad">Anything.</span></h1>
+    <p class="hero-sub">MP4 videos, MP3 audio — fast, clean, no BS.<br>No installs, no extensions, just paste and go.</p>
+
+    <div class="tier-pills">
+      <div class="pill"><span class="pi">👤</span> Guest: <strong>{{ guest_limit }}/day</strong><span class="tag free">ads</span></div>
+      <div class="pill"><span class="pi">✉</span> Free account: <strong>{{ free_limit }}/day</strong><span class="tag noad">no ads</span></div>
+      <div class="pill"><span class="pi">⭐</span> Pro: <strong>Unlimited</strong><span class="tag unlim">coming soon</span></div>
+    </div>
 
     {% if downloads_left is not none %}
-      <div class="dl-badge {% if downloads_left <= 1 %}danger{% elif downloads_left <= 2 %}warning{% endif %}">
-        <span class="dot"></span>
-        {% if current_user.is_authenticated and current_user.is_premium %}
-          Unlimited downloads — Premium
-        {% else %}
-          {{ downloads_left }} free download{{ 's' if downloads_left != 1 else '' }} left
-        {% endif %}
-      </div>
+    <div class="dl-counter {% if downloads_left <= 1 %}danger{% elif downloads_left <= 3 %}warn{% endif %}">
+      <span class="pulse-dot"></span>
+      {% if current_user.is_authenticated and current_user.is_premium %}
+        Unlimited downloads — Pro
+      {% else %}
+        <strong>{{ downloads_left }}</strong>&nbsp;download{{ 's' if downloads_left != 1 else '' }} left today
+      {% endif %}
+    </div>
     {% endif %}
   </div>
 
   <div class="card">
+    <!-- MODE TABS -->
     <div class="modes">
-      <button class="mode-btn active" onclick="setMode('mp4', this)">
-        <span class="icon">🎬</span>Download MP4
+      <button class="mode-btn active" onclick="setMode('mp4',this)">
+        <span class="icon">🎬</span>
+        <span class="mode-label">Video MP4</span>
       </button>
-      <button class="mode-btn" onclick="setMode('mp3', this)">
-        <span class="icon">🎵</span>Download MP3
+      <button class="mode-btn" onclick="setMode('mp3',this)">
+        <span class="icon">🎵</span>
+        <span class="mode-label">Audio MP3</span>
       </button>
-      <button class="mode-btn" onclick="setMode('convert', this)">
-        <span class="icon">🔄</span>MP4 → MP3
+      <button class="mode-btn" onclick="setMode('convert',this)">
+        <span class="icon">⚡</span>
+        <span class="mode-label">MP4 → MP3</span>
       </button>
     </div>
 
-    <div class="url-row">
-      <input type="text" id="url-input" placeholder="Paste YouTube URL..." oninput="clearState()" />
-      <button class="btn btn-ghost" onclick="fetchInfo()">Preview</button>
+    <!-- URL INPUT -->
+    <div class="input-group">
+      <input type="text" id="url-input" placeholder="Paste YouTube URL here..." oninput="clearState()" />
+      <button class="btn-preview" onclick="fetchInfo()">Preview</button>
     </div>
 
+    <!-- PREVIEW -->
     <div id="preview">
       <img id="thumb" src="" alt="" />
       <div>
@@ -325,43 +554,73 @@
       </div>
     </div>
 
-    <button class="btn btn-primary" id="dl-btn" onclick="startDownload()">⬇ Download</button>
+    <!-- DOWNLOAD -->
+    <button class="btn-download" id="dl-btn" onclick="startDownload()">↓ Download</button>
 
+    <!-- PROGRESS -->
     <div id="progress-wrap">
-      <div class="prog-label"><span id="prog-msg">Starting...</span><span id="prog-speed"></span></div>
-      <div class="prog-bg"><div class="prog-fill" id="prog-fill"></div></div>
+      <div class="prog-header"><span id="prog-msg">Starting...</span><span id="prog-speed"></span></div>
+      <div class="prog-track"><div class="prog-bar" id="prog-fill"></div></div>
     </div>
 
+    <!-- RESULT -->
     <div id="result">
       <div class="result-box">
-        <span class="result-name" id="result-name"></span>
-        <a id="result-link" href="#"><button class="btn btn-success">Save ↓</button></a>
+        <div class="result-left">
+          <span class="result-icon" id="result-icon">🎵</span>
+          <div>
+            <div class="result-name" id="result-name"></div>
+            <div class="result-tag">Ready to save</div>
+          </div>
+        </div>
+        <a id="result-link" href="#"><button class="btn-save">Save ↓</button></a>
       </div>
     </div>
 
+    <!-- ERROR -->
     <div id="error-box" class="alert alert-error"></div>
 
+    <!-- LIMIT -->
     <div id="limit-box" class="alert alert-limit">
-      <strong>You've used your 5 free downloads!</strong><br>
-      Sign up for free to keep downloading — no credit card needed.
-      <div class="limit-btns">
-        <a href="/signup" class="primary">Create Free Account</a>
-        <a href="/login" class="secondary">Login</a>
-      </div>
+      <h4>Daily limit reached!</h4>
+      {% if is_guest %}
+        <p>Sign up free to get <strong>10 downloads/day</strong> with zero ads.</p>
+        <div class="limit-btns">
+          <a href="/signup" class="p">Create Free Account</a>
+          <a href="/login" class="s">Login</a>
+        </div>
+      {% else %}
+        <p>Upgrade to Pro for unlimited downloads — coming soon!</p>
+      {% endif %}
     </div>
   </div>
 </main>
 
-<footer>yt-dlp + ffmpeg · for personal use only</footer>
+<footer>
+  yt-dlp + ffmpeg · personal use only ·
+  <a href="/signup">sign up free</a> to remove ads
+</footer>
 
 <script>
+const IS_GUEST = {{ 'true' if is_guest else 'false' }};
+const AD_URL = "{{ ad_url }}";
 let currentMode = 'mp4';
 let pollInterval = null;
+let pendingJobId = null;
+let downloadReady = false;
+
+function getEmbedUrl(url) {
+  const m = url.match(/(?:v=|youtu\.be\/)([^&\s]+)/);
+  return m ? `https://www.youtube.com/embed/${m[1]}?autoplay=1&rel=0` : url;
+}
 
 function setMode(mode, el) {
   currentMode = mode;
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
+  // Update result icon
+  const icons = {mp4:'🎬', mp3:'🎵', convert:'⚡'};
+  document.getElementById('result-icon').textContent = icons[mode] || '🎵';
 }
 
 function clearState() {
@@ -376,7 +635,7 @@ async function fetchInfo() {
   if (!url) return;
   clearState();
   try {
-    const res = await fetch('/api/info', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({url}) });
+    const res = await fetch('/api/info', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url})});
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     document.getElementById('thumb').src = data.thumbnail || '';
@@ -390,41 +649,82 @@ async function fetchInfo() {
 
 async function startDownload() {
   const url = document.getElementById('url-input').value.trim();
-  if (!url) { showError('Please paste a URL.'); return; }
+  if (!url) { showError('Please paste a YouTube URL.'); return; }
   clearState();
+  downloadReady = false;
   document.getElementById('dl-btn').disabled = true;
   showProgress(0, 'Starting...');
   try {
-    const res = await fetch('/api/download', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({url, mode: currentMode}) });
+    const res = await fetch('/api/download', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url, mode:currentMode})});
     const data = await res.json();
-    if (data.error === 'limit') { hideProgress(); showLimit(); document.getElementById('dl-btn').disabled = false; return; }
+    if (data.error === 'limit') { hideProgress(); showLimit(); document.getElementById('dl-btn').disabled=false; return; }
     if (data.error) throw new Error(data.message || data.error);
+    pendingJobId = data.job_id;
+    if (data.show_ad) showAd();
     pollJob(data.job_id);
-    // Refresh page after download to update counter
-  } catch(e) { showError(e.message); document.getElementById('dl-btn').disabled = false; hideProgress(); }
+  } catch(e) { showError(e.message); document.getElementById('dl-btn').disabled=false; hideProgress(); }
 }
 
+// AD
+let skipTimer = null, skipSecs = 5;
+function showAd() {
+  document.getElementById('ad-iframe').src = getEmbedUrl(AD_URL);
+  document.getElementById('ad-overlay').classList.add('visible');
+  skipSecs = 5;
+  const btn = document.getElementById('skip-btn');
+  btn.disabled = true;
+  document.getElementById('skip-timer').textContent = `Skip in ${skipSecs}s...`;
+  skipTimer = setInterval(() => {
+    skipSecs--;
+    if (skipSecs <= 0) {
+      clearInterval(skipTimer);
+      btn.disabled = false;
+      document.getElementById('skip-timer').textContent = 'Ready!';
+    } else {
+      document.getElementById('skip-timer').textContent = `Skip in ${skipSecs}s...`;
+    }
+  }, 1000);
+}
+
+function skipAd() {
+  clearInterval(skipTimer);
+  document.getElementById('ad-overlay').classList.remove('visible');
+  document.getElementById('ad-iframe').src = '';
+  if (downloadReady && pendingJobId) {
+    document.getElementById('result-link').click();
+    setTimeout(() => location.reload(), 4000);
+  }
+}
+
+// POLL
 function pollJob(job_id) {
   clearInterval(pollInterval);
   pollInterval = setInterval(async () => {
-    const res = await fetch(`/api/status/${job_id}`);
-    const job = await res.json();
-    showProgress(job.percent, job.message, job.speed);
-    if (job.status === 'done') {
-      clearInterval(pollInterval);
-      hideProgress();
-      document.getElementById('result-name').textContent = job.filename;
-      document.getElementById('result-link').href = `/api/file/${job_id}`;
-      document.getElementById('result').classList.add('visible');
-      document.getElementById('dl-btn').disabled = false;
-      // Reload to update download counter
-      setTimeout(() => location.reload(), 3000);
-    } else if (job.status === 'error') {
-      clearInterval(pollInterval);
-      hideProgress();
-      showError(job.message);
-      document.getElementById('dl-btn').disabled = false;
-    }
+    try {
+      const res = await fetch(`/api/status/${job_id}`);
+      const job = await res.json();
+      showProgress(job.percent, job.message, job.speed);
+      if (job.status === 'done') {
+        clearInterval(pollInterval);
+        hideProgress();
+        downloadReady = true;
+        const fname = job.filename || 'download';
+        document.getElementById('result-name').textContent = fname;
+        document.getElementById('result-link').href = `/api/file/${job_id}`;
+        document.getElementById('result').classList.add('visible');
+        document.getElementById('dl-btn').disabled = false;
+        if (!document.getElementById('ad-overlay').classList.contains('visible')) {
+          setTimeout(() => { document.getElementById('result-link').click(); }, 500);
+          setTimeout(() => location.reload(), 5000);
+        }
+      } else if (job.status === 'error') {
+        clearInterval(pollInterval);
+        hideProgress();
+        showError(job.message);
+        document.getElementById('dl-btn').disabled = false;
+        document.getElementById('ad-overlay').classList.remove('visible');
+      }
+    } catch(e) {}
   }, 700);
 }
 
@@ -435,7 +735,7 @@ function showProgress(pct, msg, speed) {
   document.getElementById('prog-speed').textContent = speed || '';
 }
 function hideProgress() { document.getElementById('progress-wrap').classList.remove('visible'); }
-function showError(msg) { const el = document.getElementById('error-box'); el.textContent = '⚠ ' + msg; el.classList.add('visible'); }
+function showError(msg) { const el=document.getElementById('error-box'); el.textContent='⚠ '+msg; el.classList.add('visible'); }
 function showLimit() { document.getElementById('limit-box').classList.add('visible'); }
 </script>
 </body>
