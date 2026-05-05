@@ -1,6 +1,3 @@
-import psycopg2cffi
-import psycopg2cffi.compat
-psycopg2cffi.compat.register()
 from flask import Flask, request, jsonify, send_file, render_template, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -18,6 +15,8 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-in-pr
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///ytdl.db')
 if database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
+if 'postgresql' in database_url and 'pg8000' not in database_url:
+    database_url = database_url.replace('postgresql://', 'postgresql+pg8000://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
