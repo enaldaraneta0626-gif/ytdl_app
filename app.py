@@ -129,10 +129,9 @@ def get_ydl_opts(job_id, mode, output_path):
     if mode == 'mp3':
         return {**base, 'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}]}
     elif mode == 'mp4':
-        return {**base, 'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best', 'merge_output_format': 'mp4'}
+        return {**base, 'format': 'bestvideo+bestaudio/best', 'merge_output_format': 'mp4'}
     elif mode == 'convert':
-        return {**base, 'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best', 'merge_output_format': 'mp4',
-                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}]}
+        return {**base, 'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}]}
 
 def download_worker(job_id, url, mode, user_id=None):
     job_dir = DOWNLOAD_DIR / job_id
