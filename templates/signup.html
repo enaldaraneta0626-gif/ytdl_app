@@ -32,7 +32,7 @@
   <h2>Create your account</h2>
   <p class="sub">Free forever — upgrade when you need more.</p>
 
-  <div class="free-badge">✦ 5 free downloads/month included</div>
+  <div class="free-badge">✦ 10 free downloads/day included</div>
 
   {% if error %}
   <div class="error">{{ error }}</div>
@@ -44,7 +44,8 @@
     <label>Username</label>
     <input type="text" name="username" placeholder="cooluser" required />
     <label>Password</label>
-    <input type="password" name="password" placeholder="••••••••" required />
+    <input type="password" name="password" placeholder="••••••••" required minlength="8" />
+    <small style="color:var(--muted2);font-size:11px;font-family:'DM Mono',monospace;display:block;margin-top:-12px;margin-bottom:18px;">Minimum 8 characters</small>
     <button type="submit" class="btn">Create Account →</button>
   </form>
 </div>

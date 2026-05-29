@@ -573,7 +573,7 @@
             <div class="result-tag">Ready to save</div>
           </div>
         </div>
-        <a id="result-link" href="#"><button class="btn-save">Save ↓</button></a>
+        <a id="result-link" href="#" class="btn-save">Save ↓</a>
       </div>
     </div>
 
@@ -608,6 +608,7 @@ let currentMode = 'mp4';
 let pollInterval = null;
 let pendingJobId = null;
 let downloadReady = false;
+let fileToken = null;
 
 function getEmbedUrl(url) {
   const m = url.match(/(?:v=|youtu\.be\/)([^&\s]+)/);
@@ -660,6 +661,7 @@ async function startDownload() {
     if (data.error === 'limit') { hideProgress(); showLimit(); document.getElementById('dl-btn').disabled=false; return; }
     if (data.error) throw new Error(data.message || data.error);
     pendingJobId = data.job_id;
+    fileToken = data.file_token;
     if (data.show_ad) showAd();
     pollJob(data.job_id);
   } catch(e) { showError(e.message); document.getElementById('dl-btn').disabled=false; hideProgress(); }
@@ -692,7 +694,9 @@ function skipAd() {
   document.getElementById('ad-iframe').src = '';
   if (downloadReady && pendingJobId) {
     document.getElementById('result-link').click();
-    setTimeout(() => location.reload(), 4000);
+    setTimeout(() => {
+    if (!document.getElementById('url-input').value.trim()) location.reload();
+  }, 4000);
   }
 }
 
@@ -710,12 +714,14 @@ function pollJob(job_id) {
         downloadReady = true;
         const fname = job.filename || 'download';
         document.getElementById('result-name').textContent = fname;
-        document.getElementById('result-link').href = `/api/file/${job_id}`;
+        document.getElementById('result-link').href = `/api/file/${job_id}?token=${fileToken}`;
         document.getElementById('result').classList.add('visible');
         document.getElementById('dl-btn').disabled = false;
         if (!document.getElementById('ad-overlay').classList.contains('visible')) {
           setTimeout(() => { document.getElementById('result-link').click(); }, 500);
-          setTimeout(() => location.reload(), 5000);
+          setTimeout(() => {
+            if (!document.getElementById('url-input').value.trim()) location.reload();
+          }, 5000);
         }
       } else if (job.status === 'error') {
         clearInterval(pollInterval);
