@@ -1,10 +1,13 @@
-from flask import Flask, request, jsonify, send_file, render_template, redirect, url_for, session
+from flask import Flask, request, jsonify, send_file, render_template, redirect, url_for, session, after_this_request
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_bcrypt import Bcrypt
 import os
 import threading
 import uuid
+import re
+import secrets
+import shutil
 import requests as http_requests
 from pathlib import Path
 from datetime import datetime, date
@@ -35,6 +38,8 @@ AD_YOUTUBE_URL = "https://www.youtube.com/watch?v=7tZAhO7BEnA"
 GUEST_DAILY_LIMIT = 5
 FREE_USER_DAILY_LIMIT = 10
 WEBHOOK_URL = os.environ.get('WEBHOOK_URL', '')
+
+YOUTUBE_PATTERN = re.compile(r'(youtube\.com|youtu\.be)')
 
 # Cobalt API instances (fallbacks)
 COBALT_INSTANCES = [
@@ -228,6 +233,8 @@ def signup():
         password = request.form.get('password', '')
         if not email or not username or not password:
             return render_template('signup.html', error='All fields are required.')
+        if len(password) < 8:
+            return render_template('signup.html', error='Password must be at least 8 characters.')
         if User.query.filter_by(email=email).first():
             return render_template('signup.html', error='Email already registered.')
         if User.query.filter_by(username=username).first():
@@ -282,7 +289,11 @@ def dashboard():
 @app.route('/api/info', methods=['POST'])
 def get_info():
     url = request.json.get('url', '').strip()
+    if not YOUTUBE_PATTERN.search(url):
+        return jsonify({'error': 'invalid_url', 'message': 'Only YouTube URLs are supported.'}), 400
     try:
+        vid_match = re.search(r'(?:v=|youtu\.be/)([^&\s?]+)', url)
+        thumbnail = f"https://img.youtube.com/vi/{vid_match.group(1)}/hqdefault.jpg" if vid_match else None
         # Use cobalt to get info
         for instance in COBALT_INSTANCES:
             try:
@@ -292,7 +303,7 @@ def get_info():
                     data = res.json()
                     return jsonify({
                         'title': data.get('filename', 'YouTube Video').rsplit('.', 1)[0],
-                        'thumbnail': None,
+                        'thumbnail': thumbnail,
                         'duration': None,
                         'uploader': 'YouTube',
                         'view_count': None
@@ -310,26 +321,33 @@ def start_download():
     mode = data.get('mode', 'mp3')
     if not url:
         return jsonify({'error': 'No URL provided'}), 400
+    if not YOUTUBE_PATTERN.search(url):
+        return jsonify({'error': 'invalid_url', 'message': 'Only YouTube URLs are supported.'}), 400
+    if mode not in ('mp4', 'mp3', 'convert'):
+        return jsonify({'error': 'Invalid mode'}), 400
     allowed, reason = can_download()
     if not allowed:
         return jsonify({'error': 'limit', 'message': 'Daily limit reached!'}), 403
-    if not current_user.is_authenticated:
-        session['guest_downloads'] = get_guest_downloads_today() + 1
-        session['guest_dl_date'] = str(date.today())
+    is_guest = not current_user.is_authenticated
     job_id = str(uuid.uuid4())
-    jobs[job_id] = {'status': 'starting', 'percent': 0, 'message': 'Starting...'}
+    file_token = secrets.token_urlsafe(16)
+    jobs[job_id] = {'status': 'starting', 'percent': 0, 'message': 'Starting...', 'guest': is_guest, 'guest_counted': False, 'file_token': file_token}
     user_id = current_user.id if current_user.is_authenticated else None
     thread = threading.Thread(target=download_worker, args=(job_id, url, mode, user_id))
     thread.daemon = True
     thread.start()
     show_ad = not current_user.is_authenticated
-    return jsonify({'job_id': job_id, 'show_ad': show_ad})
+    return jsonify({'job_id': job_id, 'show_ad': show_ad, 'file_token': file_token})
 
 @app.route('/api/status/<job_id>')
 def job_status(job_id):
     job = jobs.get(job_id)
     if not job:
         return jsonify({'error': 'Job not found'}), 404
+    if job.get('status') == 'done' and job.get('guest') and not job.get('guest_counted'):
+        session['guest_downloads'] = get_guest_downloads_today() + 1
+        session['guest_dl_date'] = str(date.today())
+        jobs[job_id]['guest_counted'] = True
     return jsonify(job)
 
 @app.route('/api/file/<job_id>')
@@ -337,9 +355,24 @@ def serve_file(job_id):
     job = jobs.get(job_id)
     if not job or job.get('status') != 'done':
         return jsonify({'error': 'File not ready'}), 404
+    token = request.args.get('token', '')
+    if token != job.get('file_token', ''):
+        return jsonify({'error': 'Unauthorized'}), 403
     filepath = job.get('filepath')
     if not filepath or not os.path.exists(filepath):
         return jsonify({'error': 'File not found'}), 404
+
+    job_dir = str(Path(filepath).parent)
+
+    @after_this_request
+    def cleanup(response):
+        try:
+            shutil.rmtree(job_dir, ignore_errors=True)
+            jobs.pop(job_id, None)
+        except Exception:
+            pass
+        return response
+
     return send_file(filepath, as_attachment=True, download_name=job.get('filename'))
 
 with app.app_context():
