@@ -158,7 +158,7 @@ def _base_ydl_opts():
         'noplaylist': True,
         # Try multiple player clients: helps both format availability and
         # bot-detection from datacenter IPs.
-        'extractor_args': {'youtube': {'player_client': ['web_safari', 'mweb', 'tv', 'android', 'ios']}},
+        'extractor_args': {'youtube': {'player_client': ['web_safari', 'mweb']}},
     }
     if YTDLP_COOKIES_FILE and os.path.exists(YTDLP_COOKIES_FILE):
         opts['cookiefile'] = YTDLP_COOKIES_FILE
