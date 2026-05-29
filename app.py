@@ -152,7 +152,14 @@ def _progress_hook(job_id):
 
 
 def _base_ydl_opts():
-    opts = {'quiet': True, 'no_warnings': True, 'noplaylist': True}
+    opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'noplaylist': True,
+        # Try multiple player clients: helps both format availability and
+        # bot-detection from datacenter IPs.
+        'extractor_args': {'youtube': {'player_client': ['web_safari', 'mweb', 'tv', 'android', 'ios']}},
+    }
     if YTDLP_COOKIES_FILE and os.path.exists(YTDLP_COOKIES_FILE):
         opts['cookiefile'] = YTDLP_COOKIES_FILE
     return opts
