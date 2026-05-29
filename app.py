@@ -8,6 +8,7 @@ import uuid
 import re
 import secrets
 import shutil
+import yt_dlp
 import requests as http_requests
 from pathlib import Path
 from datetime import datetime, date
@@ -41,17 +42,10 @@ WEBHOOK_URL = os.environ.get('WEBHOOK_URL', '')
 
 YOUTUBE_PATTERN = re.compile(r'(youtube\.com|youtu\.be)')
 
-# Cobalt API instances (fallbacks)
-COBALT_INSTANCES = [
-    "https://cobalt.imput.net",
-    "https://api.cobalt.tools",
-    "https://cobalt.api.timelessnesses.me",
-    "https://cobalt.urdushayari.cf",
-    "https://cobalt.synzr.space",
-    "https://co.wuk.sh",
-    "https://cobalt.riversiderocksalt.me",
-    "https://cobalt.drgns.space",
-]
+# Optional cookies file to get past YouTube's "confirm you're not a bot"
+# checks when running from a datacenter IP. Set YTDLP_COOKIES_FILE to the
+# path of a Netscape-format cookies.txt exported from a logged-in browser.
+YTDLP_COOKIES_FILE = os.environ.get('YTDLP_COOKIES_FILE', '')
 
 jobs = {}
 
@@ -121,88 +115,83 @@ def fire_webhook(user):
     except Exception:
         pass
 
-def cobalt_download(url, mode, job_id, job_dir):
-    """Download using cobalt API"""
-    # Map mode to cobalt downloadMode
-    download_mode = 'audio' if mode in ('mp3', 'convert') else 'auto'
-    audio_format = 'mp3' if mode in ('mp3', 'convert') else 'best'
+def _progress_hook(job_id):
+    """yt-dlp progress hook that mirrors download state into the jobs dict."""
+    def hook(d):
+        if d.get('status') == 'downloading':
+            total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
+            downloaded = d.get('downloaded_bytes', 0)
+            pct = int(downloaded / total * 90) if total else 0
+            speed = d.get('speed')
+            speed_str = f'{speed / 1024 / 1024:.1f} MB/s' if speed else ''
+            jobs[job_id].update({
+                'status': 'downloading',
+                'percent': max(5, pct),
+                'message': f'Downloading... {pct}%' if total else 'Downloading...',
+                'speed': speed_str,
+            })
+        elif d.get('status') == 'finished':
+            jobs[job_id].update({'status': 'downloading', 'percent': 95, 'message': 'Processing...'})
+    return hook
 
-    payload = {
-        'url': url,
-        'downloadMode': download_mode,
-        'audioFormat': audio_format,
-        'videoQuality': '1080',
-    }
 
-    headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-    }
+def _base_ydl_opts():
+    opts = {'quiet': True, 'no_warnings': True, 'noplaylist': True}
+    if YTDLP_COOKIES_FILE and os.path.exists(YTDLP_COOKIES_FILE):
+        opts['cookiefile'] = YTDLP_COOKIES_FILE
+    return opts
 
-    # Try each cobalt instance
-    cobalt_url = None
-    cobalt_data = None
-    for instance in COBALT_INSTANCES:
-        try:
-            jobs[job_id].update({'status': 'downloading', 'percent': 10, 'message': 'Connecting to download service...'})
-            res = http_requests.post(f"{instance}/", json=payload, headers=headers, timeout=15)
-            if res.status_code == 200:
-                data = res.json()
-                if data.get('status') in ('stream', 'redirect', 'tunnel'):
-                    cobalt_url = data.get('url')
-                    cobalt_data = data
-                    break
-                elif data.get('status') == 'picker':
-                    # Multiple streams, pick first
-                    cobalt_url = data.get('picker', [{}])[0].get('url')
-                    break
-        except Exception:
-            continue
 
-    if not cobalt_url:
-        raise Exception("Could not connect to download service. Please try again.")
+def ytdlp_download(url, mode, job_id, job_dir):
+    """Download a video/audio stream with yt-dlp + ffmpeg."""
+    jobs[job_id].update({'status': 'downloading', 'percent': 3, 'message': 'Fetching video info...'})
 
-    # Download the actual file
-    jobs[job_id].update({'status': 'downloading', 'percent': 30, 'message': 'Downloading...'})
-    ext = 'mp3' if mode in ('mp3', 'convert') else 'mp4'
-    filename = f"download.{ext}"
+    ydl_opts = _base_ydl_opts()
+    ydl_opts.update({
+        'outtmpl': str(job_dir / '%(title)s.%(ext)s'),
+        'progress_hooks': [_progress_hook(job_id)],
+        'restrictfilenames': True,
+    })
 
-    file_res = http_requests.get(cobalt_url, stream=True, timeout=120)
-    file_res.raise_for_status()
+    if mode in ('mp3', 'convert'):
+        ydl_opts.update({
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+        })
+        ext = 'mp3'
+    else:
+        ydl_opts.update({
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'merge_output_format': 'mp4',
+        })
+        ext = 'mp4'
 
-    # Try to get filename from headers
-    cd = file_res.headers.get('Content-Disposition', '')
-    if 'filename=' in cd:
-        filename = cd.split('filename=')[-1].strip('"\'')
-        if not filename.endswith(f'.{ext}'):
-            filename = filename.rsplit('.', 1)[0] + f'.{ext}'
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.extract_info(url, download=True)
+    except yt_dlp.utils.DownloadError as e:
+        msg = str(e)
+        if 'Sign in to confirm' in msg or 'not a bot' in msg.lower():
+            raise Exception("YouTube is blocking this server. An admin needs to set "
+                            "YTDLP_COOKIES_FILE with a valid cookies.txt.")
+        raise Exception("Download failed: " + msg.split('ERROR:')[-1].strip()[:200])
 
-    filepath = job_dir / filename
-    total = int(file_res.headers.get('Content-Length', 0))
-    downloaded = 0
-
-    with open(filepath, 'wb') as f:
-        for chunk in file_res.iter_content(chunk_size=8192):
-            if chunk:
-                f.write(chunk)
-                downloaded += len(chunk)
-                if total:
-                    percent = int(30 + (downloaded / total) * 65)
-                    speed = downloaded / 1024 / 1024
-                    jobs[job_id].update({
-                        'status': 'downloading',
-                        'percent': percent,
-                        'message': f'Downloading... {percent}%',
-                        'speed': f'{speed:.1f} MB'
-                    })
-
-    return filepath, filename
+    # Locate the produced file (prefer the expected extension)
+    files = sorted(job_dir.glob(f'*.{ext}')) or [p for p in job_dir.iterdir() if p.is_file()]
+    if not files:
+        raise Exception("Download produced no file.")
+    filepath = files[0]
+    return filepath, filepath.name
 
 def download_worker(job_id, url, mode, user_id=None):
     job_dir = DOWNLOAD_DIR / job_id
     job_dir.mkdir(exist_ok=True)
     try:
-        filepath, filename = cobalt_download(url, mode, job_id, job_dir)
+        filepath, filename = ytdlp_download(url, mode, job_id, job_dir)
         title = filename.rsplit('.', 1)[0]
 
         jobs[job_id].update({
@@ -292,27 +281,19 @@ def get_info():
     if not YOUTUBE_PATTERN.search(url):
         return jsonify({'error': 'invalid_url', 'message': 'Only YouTube URLs are supported.'}), 400
     try:
-        vid_match = re.search(r'(?:v=|youtu\.be/)([^&\s?]+)', url)
-        thumbnail = f"https://img.youtube.com/vi/{vid_match.group(1)}/hqdefault.jpg" if vid_match else None
-        # Use cobalt to get info
-        for instance in COBALT_INSTANCES:
-            try:
-                res = http_requests.post(f"{instance}/", json={'url': url, 'downloadMode': 'auto'},
-                                         headers={'Content-Type': 'application/json', 'Accept': 'application/json'}, timeout=10)
-                if res.status_code == 200:
-                    data = res.json()
-                    return jsonify({
-                        'title': data.get('filename', 'YouTube Video').rsplit('.', 1)[0],
-                        'thumbnail': thumbnail,
-                        'duration': None,
-                        'uploader': 'YouTube',
-                        'view_count': None
-                    })
-            except Exception:
-                continue
+        ydl_opts = _base_ydl_opts()
+        ydl_opts['skip_download'] = True
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+        return jsonify({
+            'title': info.get('title', 'YouTube Video'),
+            'thumbnail': info.get('thumbnail'),
+            'duration': info.get('duration'),
+            'uploader': info.get('uploader') or info.get('channel'),
+            'view_count': info.get('view_count'),
+        })
+    except Exception:
         return jsonify({'error': 'Could not fetch video info'}), 400
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
 
 @app.route('/api/download', methods=['POST'])
 def start_download():
