@@ -43,9 +43,13 @@ WEBHOOK_URL = os.environ.get('WEBHOOK_URL', '')
 YOUTUBE_PATTERN = re.compile(r'(youtube\.com|youtu\.be)')
 
 # Optional cookies file to get past YouTube's "confirm you're not a bot"
-# checks when running from a datacenter IP. Set YTDLP_COOKIES_FILE to the
-# path of a Netscape-format cookies.txt exported from a logged-in browser.
+# checks when running from a datacenter IP. Provide a Netscape-format
+# cookies.txt exported from a logged-in browser. Either set
+# YTDLP_COOKIES_FILE explicitly, or upload it as a Render Secret File named
+# "cookies.txt" (auto-detected at /etc/secrets/cookies.txt).
 YTDLP_COOKIES_FILE = os.environ.get('YTDLP_COOKIES_FILE', '')
+if not YTDLP_COOKIES_FILE and os.path.exists('/etc/secrets/cookies.txt'):
+    YTDLP_COOKIES_FILE = '/etc/secrets/cookies.txt'
 
 jobs = {}
 
