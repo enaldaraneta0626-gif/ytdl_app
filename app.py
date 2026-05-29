@@ -47,9 +47,21 @@ YOUTUBE_PATTERN = re.compile(r'(youtube\.com|youtu\.be)')
 # cookies.txt exported from a logged-in browser. Either set
 # YTDLP_COOKIES_FILE explicitly, or upload it as a Render Secret File named
 # "cookies.txt" (auto-detected at /etc/secrets/cookies.txt).
-YTDLP_COOKIES_FILE = os.environ.get('YTDLP_COOKIES_FILE', '')
-if not YTDLP_COOKIES_FILE and os.path.exists('/etc/secrets/cookies.txt'):
-    YTDLP_COOKIES_FILE = '/etc/secrets/cookies.txt'
+_cookies_src = os.environ.get('YTDLP_COOKIES_FILE', '')
+if not _cookies_src and os.path.exists('/etc/secrets/cookies.txt'):
+    _cookies_src = '/etc/secrets/cookies.txt'
+
+# yt-dlp rewrites the cookie file after each download, so it must live on a
+# writable path. Render Secret Files are mounted read-only, so copy it into
+# a writable location at startup and use that copy.
+YTDLP_COOKIES_FILE = ''
+if _cookies_src and os.path.exists(_cookies_src):
+    try:
+        writable_cookies = DOWNLOAD_DIR / 'cookies.txt'
+        shutil.copyfile(_cookies_src, writable_cookies)
+        YTDLP_COOKIES_FILE = str(writable_cookies)
+    except Exception:
+        YTDLP_COOKIES_FILE = _cookies_src
 
 jobs = {}
 
