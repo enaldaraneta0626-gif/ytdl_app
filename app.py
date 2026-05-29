@@ -158,7 +158,7 @@ def _base_ydl_opts():
         'noplaylist': True,
         # Try multiple player clients: helps both format availability and
         # bot-detection from datacenter IPs.
-        'extractor_args': {'youtube': {'player_client': ['web_safari', 'mweb']}},
+        'extractor_args': {'youtube': {'player_client': ['web', 'web_safari', 'mweb']}},
     }
     if YTDLP_COOKIES_FILE and os.path.exists(YTDLP_COOKIES_FILE):
         opts['cookiefile'] = YTDLP_COOKIES_FILE
@@ -188,7 +188,7 @@ def ytdlp_download(url, mode, job_id, job_dir):
         ext = 'mp3'
     else:
         ydl_opts.update({
-            'format': 'bestvideo+bestaudio/best',
+            'format': 'bestvideo+bestaudio/bestvideo/best',
             'merge_output_format': 'mp4',
         })
         ext = 'mp4'
